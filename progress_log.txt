@@ -1,0 +1,2 @@
+En saa nyt projektia gittiin, mutta olen kyllä tehnyt graafisen käyttöliittymän suurin piirtein valmiiksi. Vielä vähän epäselvää miten itse piirtäminen onnistuu käyttöliittymään.
+Tein käyttöliittymän scala swingillä. Aikaa meni noin 5 tuntia ja olen aikatauluani jäljessä.
