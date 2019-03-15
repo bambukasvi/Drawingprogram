@@ -12,13 +12,22 @@ object SwingUI extends SimpleSwingApplication {
   val width = 1500
   val colorButtonSize = new Dimension(50, 50)
   
+  val picture = new Drawing
+  
   private var currentColor = Color.black
   
   def changeColor(color: Color) = currentColor = color
   
   private var currentStroke = new BasicStroke(3)
   
+  //indicates the current shape drawn
+  
+  private var currentShape = "line"
+  
   def changeStroke(thickness: Int) = currentStroke = new BasicStroke(thickness)
+  
+  
+  
   
   def buttonAction = ???
  
@@ -28,6 +37,7 @@ object SwingUI extends SimpleSwingApplication {
     background = Color.red
     preferredSize = colorButtonSize
     maximumSize = colorButtonSize
+    
   }
   val blueButton = new Button("") {
     background = Color.blue
@@ -43,7 +53,8 @@ object SwingUI extends SimpleSwingApplication {
     background = Color.orange
     preferredSize = colorButtonSize
     maximumSize = colorButtonSize
-  }
+    changeColor(Color.orange)
+  } 
   val yellowButton = new Button("") {
     background = Color.yellow
     preferredSize = colorButtonSize
@@ -84,6 +95,8 @@ object SwingUI extends SimpleSwingApplication {
     preferredSize = colorButtonSize
     maximumSize = colorButtonSize
   }
+  
+  val buttons = Vector[Button](blackButton, darkGrayButton, grayButton, redButton, orangeButton, yellowButton,  blueButton, magentaButton, cyanButton, greenButton, pinkButton, whiteButton)
   
    // panel where the drawing happens 
   
@@ -145,7 +158,7 @@ object SwingUI extends SimpleSwingApplication {
         minimumSize = new Dimension(width/5, height)
         // GridPanel for the color buttons
         contents += new GridPanel(4,3) {
-          contents ++= Vector[Button](blackButton, darkGrayButton, grayButton, redButton, orangeButton, yellowButton,  blueButton, magentaButton, cyanButton, greenButton, pinkButton, whiteButton)
+          contents ++= buttons
           maximumSize = new Dimension(colorButtonSize.width * 3, colorButtonSize.height * 5)
         }
         contents += new Separator
@@ -162,16 +175,33 @@ object SwingUI extends SimpleSwingApplication {
    
   }
   
+  
+  
   //EVENTS
   
   this.listenTo(drawPanel.mouse.clicks)
+  this.listenTo(drawPanel.mouse.moves)
+  for (button <- buttons) {
+    this.listenTo(button)
+  }
   this.reactions += {
   
-    case clickEvent: MousePressed => {
-      println("h")
+    case MousePressed(_, p, _, _, _) => {
+      if (currentShape == "line") {
+       //  this.picture.drawLine(p.x, p.y, p.x, p.y)
+         println(currentColor)
+      }
     }
     case clickEvent: MouseReleased => {
       println("o")
+    }
+    
+    case ButtonClicked(`redButton`) => {
+      changeColor(Color.red)
+    }
+    
+    case ButtonClicked(`blackButton`) => {
+      changeColor(Color.black)
     }
       
   }
