@@ -3,6 +3,7 @@ package drawingprogram
 import scala.collection.mutable.Stack
 import java.awt.Color
 import scala.collection.mutable.Buffer
+
 class Drawing {
   
   private var currentColor = Color.BLACK
@@ -10,9 +11,17 @@ class Drawing {
   private var undos = Stack[Command]() 
   private var redos = Stack[Command]()
   
+  def addUndo(shape: Command) = undos.push(shape)
+  
+  def undo = {
+    val topElement = undos.pop
+    topElement.Undo
+    redos.push(topElement)
+  }
+  
   def deleteAll = undos.clear()
   
-  def drawLine(x1: Int, y1: Int, x2: Int, y2: Int) = ???
+  def drawLine(x1: Double, y1: Double, x2: Double, y2: Double) = ???
   
   def drawRectangle = ???
   

@@ -1,10 +1,12 @@
 package drawingprogram
 
 import scala.swing._
-import java.awt.Color
-import java.awt.BasicStroke
-import java.awt.image.BufferedImage
+
+import java.awt.{Color, Dimension, Graphics, Graphics2D, Point, geom, BasicStroke}
+
+
 import scala.swing.event._
+import scala.swing.event.Key._
 
 object SwingUI extends SimpleSwingApplication {
   
@@ -14,9 +16,6 @@ object SwingUI extends SimpleSwingApplication {
   
   val picture = new Drawing
   
-  private var currentColor = Color.black
-  
-  def changeColor(color: Color) = currentColor = color
   
   private var currentStroke = new BasicStroke(3)
   
@@ -37,84 +36,145 @@ object SwingUI extends SimpleSwingApplication {
     background = Color.red
     preferredSize = colorButtonSize
     maximumSize = colorButtonSize
+    tooltip = "Red"
     
   }
   val blueButton = new Button("") {
     background = Color.blue
     preferredSize = colorButtonSize
     maximumSize = colorButtonSize
+    tooltip = "Blue"
   }
   val greenButton = new Button("") {
     background = Color.green
     preferredSize = colorButtonSize
     maximumSize = colorButtonSize
+    tooltip = "Green"
   }
   val orangeButton = new Button("") {
     background = Color.orange
     preferredSize = colorButtonSize
     maximumSize = colorButtonSize
-    changeColor(Color.orange)
+    tooltip = "Orange"
+    
   } 
   val yellowButton = new Button("") {
     background = Color.yellow
     preferredSize = colorButtonSize
     maximumSize = colorButtonSize
+    tooltip = "Yellow"
   }
   val cyanButton = new Button("") {
     background = Color.CYAN
     preferredSize = colorButtonSize
     maximumSize = colorButtonSize
+    tooltip = "Cyan"
   }
   val blackButton = new Button("") {
     background = Color.BLACK
     preferredSize = colorButtonSize
     maximumSize = colorButtonSize
+    tooltip = "Black"
   }
   val grayButton = new Button("") {
     background = Color.gray
     preferredSize = colorButtonSize
     maximumSize = colorButtonSize
+    tooltip = "Gray"
   }
   val magentaButton = new Button("") {
     background = Color.magenta
     preferredSize = colorButtonSize
     maximumSize = colorButtonSize
+    tooltip = "Magenta"
   }
   val pinkButton = new Button("") {
     background = Color.pink
     preferredSize = colorButtonSize
     maximumSize = colorButtonSize
+    tooltip = "Pink"
   }
   val whiteButton = new Button("") {
     background = Color.white
     preferredSize = colorButtonSize
     maximumSize = colorButtonSize
+    tooltip = "White"
   }
   val darkGrayButton = new Button("") {
     background = Color.DARK_GRAY
     preferredSize = colorButtonSize
     maximumSize = colorButtonSize
+    tooltip = "Dark gray"
   }
   
   val buttons = Vector[Button](blackButton, darkGrayButton, grayButton, redButton, orangeButton, yellowButton,  blueButton, magentaButton, cyanButton, greenButton, pinkButton, whiteButton)
   
+  // case class for drawing event 
+  
+  case class DrawingStartEvent(val x: Int, val y: Int) extends Event
+  
+  case class DrawingStopEvent(val x: Int, val y: Int) extends Event
+  
    // panel where the drawing happens 
   
-  class DrawPanel(color: Color) extends Panel {
- 
-    override def paintComponent(g : Graphics2D) = {
-      g.setColor(Color.WHITE)
-      g.setStroke(currentStroke)
-      g.fillRect(0, 0, width, height)
-      
-      
-      
-      
+  class DrawPanel  extends Panel {
+    
+    listenTo(mouse.clicks, mouse.moves, keys)
+    focusable = true
+    background = Color.WHITE
+    
+    var startPoint = (0.0, 0.0)
+    var endPoint = (0.0, 0.0)
+    
+    reactions += {
+      case e: MousePressed  => 
+        moveTo(e.point)
+        startPoint = (e.point.getX, e.point.getY)
+        requestFocusInWindow()
+      case e: MouseDragged  => lineTo(e.point)
+      case e: MouseReleased => {
+        lineTo(e.point)
+        endPoint = (e.point.getX, e.point.getY)
+        if (currentShape == "line") {
+          picture.addUndo(new drawLineCommand(picture, startPoint._1, startPoint._2, endPoint._1, endPoint._2, currentColor))
+        }
+      }
+     
+     
+      case KeyTyped(_,'c',_,_) => 
+        path = new geom.GeneralPath
+        repaint()
+      case KeyTyped(_,'z',moControl,_) =>
+        picture.undo
+        
+      case _: FocusLost => repaint()
+    }
+    
+    var path = new geom.GeneralPath
 
+    def lineTo(p: Point) = { 
+      path.lineTo(p.x, p.y)
+      repaint() 
+    }
+    def moveTo(p: Point) = { 
+      path.moveTo(p.x, p.y)
+      repaint() 
+    }
+    private var currentColor = Color.black
+  
+    def changeColor(color: Color) = currentColor = color
+ 
+    override def paintComponent(g: Graphics2D) = {
+      super.paintComponent(g)
+      g.setColor(new Color(100,100,100))
+      g.drawString("Press left mouse button and drag to paint." + 
+                   (if(hasFocus) " Press 'c' to clear." else ""), 10, size.height-10)
+      g.setColor(currentColor)
+      g.draw(path)
     }
   
   }
-  val drawPanel = new DrawPanel(currentColor)
+  val drawPanel = new DrawPanel
   
 //  val drawing = new BufferedImage(drawPanel.maximumSize.width, drawPanel.maximumSize.height, BufferedImage.TYPE_INT_ARGB)
 //  val g = drawing.getGraphics.asInstanceOf[Graphics2D]
@@ -179,29 +239,55 @@ object SwingUI extends SimpleSwingApplication {
   
   //EVENTS
   
-  this.listenTo(drawPanel.mouse.clicks)
-  this.listenTo(drawPanel.mouse.moves)
+
+  this.listenTo(drawPanel)
   for (button <- buttons) {
     this.listenTo(button)
   }
   this.reactions += {
   
-    case MousePressed(_, p, _, _, _) => {
-      if (currentShape == "line") {
-       //  this.picture.drawLine(p.x, p.y, p.x, p.y)
-         println(currentColor)
-      }
-    }
+    
     case clickEvent: MouseReleased => {
       println("o")
     }
     
     case ButtonClicked(`redButton`) => {
-      changeColor(Color.red)
+      drawPanel.changeColor(Color.red)
     }
     
     case ButtonClicked(`blackButton`) => {
-      changeColor(Color.black)
+      drawPanel.changeColor(Color.black)
+    }
+    
+    case ButtonClicked(`whiteButton`) => {
+      drawPanel.changeColor(Color.WHITE)
+    }
+    case ButtonClicked(`blueButton`) => {
+      drawPanel.changeColor(Color.blue)
+    }
+    case ButtonClicked(`cyanButton`) => {
+      drawPanel.changeColor(Color.CYAN)
+    }
+    case ButtonClicked(`orangeButton`) => {
+      drawPanel.changeColor(Color.orange)
+    }
+    case ButtonClicked(`magentaButton`) => {
+      drawPanel.changeColor(Color.magenta)
+    }
+    case ButtonClicked(`grayButton`) => {
+      drawPanel.changeColor(Color.gray)
+    }
+    case ButtonClicked(`darkGrayButton`) => {
+      drawPanel.changeColor(Color.DARK_GRAY)
+    }
+    case ButtonClicked(`yellowButton`) => {
+      drawPanel.changeColor(Color.yellow)
+    }
+    case ButtonClicked(`pinkButton`) => {
+      drawPanel.changeColor(Color.PINK)
+    }
+    case ButtonClicked(`greenButton`) => {
+      drawPanel.changeColor(Color.green)
     }
       
   }

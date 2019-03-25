@@ -4,6 +4,8 @@ trait Command {
   
   def Redo: Unit
   
+  def Undo: Unit
+  
  
   
 }
