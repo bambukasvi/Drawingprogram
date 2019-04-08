@@ -3,3 +3,6 @@
 25.3 Tein piirrostoimintoa ohjelmaan, sain jonkinnäkoisen vapaan käden piirron aikaiseksi, mutta en vielä saanut kuvioita piirettyä. Värin vaihto onnistuu, mutta se tällä hetkellä vaihtaa 
      olemassaolevienkin kuvioiden väriä. Graafinen käyttöliittymä on aika lailla valmis, pitää vielä kuvioiden vaihtonapit laittaa. Kuviot pitää myös vielä saada tallennettua
      olioina stackiin, josta niihin voisi päästä käsiksi. Minulla meni aikaa noin 5 tuntia tässä vaiheessa. Olen jäljessä jonkin verran.
+     
+
+8.4 En ole saanut tehtyä projektia edellisen checkpointin jälkeen kiireiden vuoksi
