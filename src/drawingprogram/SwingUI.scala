@@ -1,12 +1,8 @@
 package drawingprogram
-
 import scala.swing._
-
 import java.awt.{Color, Dimension, Graphics, Graphics2D, Point, geom, BasicStroke}
-
-
+import scala.collection.mutable.Stack
 import scala.swing.event._
-import scala.swing.event.Key._
 
 object SwingUI extends SimpleSwingApplication {
   
@@ -16,18 +12,16 @@ object SwingUI extends SimpleSwingApplication {
   
   val picture = new Drawing
   
-  
   private var currentStroke = new BasicStroke(3)
+  private var currentColor = Color.black
+  private var currentShape: java.awt.Shape = new java.awt.geom.Line2D.Double
+  // differentiate between a circle and an ellipse
+  private var isCircle = false
   
-  //indicates the current shape drawn
-  
-  private var currentShape = "line"
-  
+  def changeColor(color: Color) = currentColor = color
+  def changeShape(shape: java.awt.Shape) = currentShape = shape   
   def changeStroke(thickness: Int) = currentStroke = new BasicStroke(thickness)
-  
-  
-  
-  
+    
   def buttonAction = ???
  
   //Buttons for different colors
@@ -107,7 +101,39 @@ object SwingUI extends SimpleSwingApplication {
     tooltip = "Dark gray"
   }
   
-  val buttons = Vector[Button](blackButton, darkGrayButton, grayButton, redButton, orangeButton, yellowButton,  blueButton, magentaButton, cyanButton, greenButton, pinkButton, whiteButton)
+  val colorButtons = Vector[Button](blackButton, darkGrayButton, grayButton, redButton, orangeButton, yellowButton,  blueButton, magentaButton, cyanButton, greenButton, pinkButton, whiteButton)
+  
+  //  buttons for different shapes
+  
+  val lineButton = new Button("Line") {
+    background = Color.WHITE
+    preferredSize = colorButtonSize
+    maximumSize = colorButtonSize
+    tooltip = "Line"
+  }
+  
+  val rectangleButton = new Button("Rectangle") {
+    background = Color.WHITE
+    preferredSize = colorButtonSize
+    maximumSize = colorButtonSize
+    tooltip = "Rectangle"
+  }
+  
+  val circleButton = new Button("Circle") {
+    background = Color.WHITE
+    preferredSize = colorButtonSize
+    maximumSize = colorButtonSize
+    tooltip = "Circle"
+  }
+  
+  val ellipseButton = new Button("Ellipse") {
+    background = Color.WHITE
+    preferredSize = colorButtonSize
+    maximumSize = colorButtonSize
+    tooltip = "Ellipse"
+  }
+  
+  val shapeButtons = Vector[Button](lineButton, rectangleButton, circleButton, ellipseButton)
   
   // case class for drawing event 
   
@@ -123,54 +149,110 @@ object SwingUI extends SimpleSwingApplication {
     focusable = true
     background = Color.WHITE
     
-    var startPoint = (0.0, 0.0)
-    var endPoint = (0.0, 0.0)
+    private var startPoint = (0.0, 0.0)
     
+    // What happens when you press and drag your mouse on the canvas
     reactions += {
       case e: MousePressed  => 
-        moveTo(e.point)
-        startPoint = (e.point.getX, e.point.getY)
+        startPoint = (e.point.getX, e.point.getY) 
+        // Remove the redos if we start drawing a new shape
+        picture.shapeRedos.clear()
+        picture.colorRedos.clear()
         requestFocusInWindow()
       case e: MouseDragged  => lineTo(e.point)
       case e: MouseReleased => {
         lineTo(e.point)
-        endPoint = (e.point.getX, e.point.getY)
-        if (currentShape == "line") {
-          picture.addUndo(new drawLineCommand(picture, startPoint._1, startPoint._2, endPoint._1, endPoint._2, currentColor))
-        }
-      }
-     
-     
-      case KeyTyped(_,'c',_,_) => 
-        path = new geom.GeneralPath
+        picture.addUndo(currentShape)
+        picture.addColor(currentColor)
+        initiateShape()
+      }          
+      case KeyTyped(_,'c',_,_) =>         
+        picture.deleteAll
+        initiateShape()
         repaint()
-      case KeyTyped(_,'z',moControl,_) =>
+      case KeyTyped(_,'z',_,_) =>       
         picture.undo
-        
+        initiateShape()
+        repaint()
+      case KeyTyped(_,'r',_,_) =>
+        picture.redo
+        initiateShape()
+        repaint()
       case _: FocusLost => repaint()
     }
     
-    var path = new geom.GeneralPath
-
+    // draws the currently selected shape  
     def lineTo(p: Point) = { 
-      path.lineTo(p.x, p.y)
+      currentShape match {
+        
+        case line: geom.Line2D.Double => line.setLine(startPoint._1, startPoint._2, p.x, p.y)
+        
+        case rectangle: geom.Rectangle2D.Double => {
+          if (startPoint._1 < p.x && startPoint._2 < p.y) {
+            rectangle.setRect(startPoint._1, startPoint._2, p.x - startPoint._1, p.y - startPoint._2)
+          } else if (startPoint._1 >= p.x && startPoint._2 >= p.y) {
+            rectangle.setRect(p.x, p.y, startPoint._1 - p.x, startPoint._2 - p.y)
+          } else if (startPoint._1 < p.x && startPoint._2 > p.y) {
+            rectangle.setRect(startPoint._1 , p.y, p.x - startPoint._1, startPoint._2 - p.y)
+          } else if (startPoint._1 > p.x && startPoint._2 < p.y) {
+            rectangle.setRect(p.x, startPoint._2, startPoint._1 - p.x, p.y - startPoint._2)
+          }          
+        }
+        
+        // ellipse case handels both circle shape and ellipse shape        
+        case ellipse: geom.Ellipse2D.Double => {
+          if (!isCircle) {
+            if (startPoint._1 < p.x && startPoint._2 < p.y) {
+              ellipse.setFrame(startPoint._1, startPoint._2, p.x - startPoint._1, p.y - startPoint._2)
+            } else if (startPoint._1 >= p.x && startPoint._2 >= p.y) {
+              ellipse.setFrame(p.x, p.y, startPoint._1 - p.x, startPoint._2 - p.y)
+            } else if (startPoint._1 < p.x && startPoint._2 > p.y) {
+              ellipse.setFrame(startPoint._1 , p.y, p.x - startPoint._1, startPoint._2 - p.y)
+            } else if (startPoint._1 > p.x && startPoint._2 < p.y) {
+              ellipse.setFrame(p.x, startPoint._2, startPoint._1 - p.x, p.y - startPoint._2)
+            } 
+          } else {
+            if (startPoint._1 < p.x && startPoint._2 < p.y) {
+              ellipse.setFrame(startPoint._1, startPoint._2, p.x - startPoint._1, p.x - startPoint._1)
+            } else if (startPoint._1 >= p.x && startPoint._2 >= p.y) {
+              ellipse.setFrame(p.x, startPoint._2 - (startPoint._1 - p.x), startPoint._1 - p.x, startPoint._1 - p.x)
+            } else if (startPoint._1 < p.x && startPoint._2 > p.y) {
+              ellipse.setFrame(startPoint._1 ,startPoint._2 - (p.x - startPoint._1), p.x - startPoint._1, p.x - startPoint._1)
+            } else if (startPoint._1 > p.x && startPoint._2 < p.y) {
+              ellipse.setFrame(p.x, startPoint._2, startPoint._1 - p.x, startPoint._1 - p.x)
+            }
+          }
+        }
+      }
+      
       repaint() 
     }
-    def moveTo(p: Point) = { 
-      path.moveTo(p.x, p.y)
-      repaint() 
+
+    def initiateShape() = {
+      if (currentShape.isInstanceOf[geom.Line2D.Double]) {
+          currentShape = new geom.Line2D.Double 
+        } else if (currentShape.isInstanceOf[geom.Rectangle2D.Double]) {
+          currentShape = new geom.Rectangle2D.Double          
+        } else if (currentShape.isInstanceOf[geom.Ellipse2D.Double]) {
+          currentShape = new geom.Ellipse2D.Double  
+        }
     }
-    private var currentColor = Color.black
-  
-    def changeColor(color: Color) = currentColor = color
+    
  
     override def paintComponent(g: Graphics2D) = {
       super.paintComponent(g)
+      g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, 
+		   java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
       g.setColor(new Color(100,100,100))
       g.drawString("Press left mouse button and drag to paint." + 
-                   (if(hasFocus) " Press 'c' to clear." else ""), 10, size.height-10)
+                   (if(hasFocus) " Press 'c' to clear, 'z' to undo and 'r' to redo. " else ""), 10, size.height-10)
       g.setColor(currentColor)
-      g.draw(path)
+      g.draw(currentShape)
+      for (i <- 0 until picture.shapeUndos.size) {
+        g.setColor(picture.colorUndos(i))
+        g.draw(picture.shapeUndos(i))
+      }
+      
     }
   
   }
@@ -187,7 +269,6 @@ object SwingUI extends SimpleSwingApplication {
     
       menuBar = new MenuBar {
         background = Color.white
-       
         contents += new Menu("File") {
           contents += new MenuItem(Action("Open") {
             buttonAction
@@ -199,18 +280,16 @@ object SwingUI extends SimpleSwingApplication {
         
         contents += new Menu("Edit") {
           contents += new MenuItem(Action("Undo") {
-            buttonAction
+            picture.undo
+            drawPanel.initiateShape()
+            drawPanel.repaint()
           })
           contents += new MenuItem(Action("Redo") {
-            buttonAction
+            picture.redo
+            drawPanel.initiateShape()
+            drawPanel.repaint()
           })
         }
-//        contents += new Separator {
-//          preferredSize = new Dimension(500, 25)
-//        }
-        contents += new MenuItem(Action("Exit") {
-          sys.exit(0)
-        })
       }
     contents = new BoxPanel(Orientation.Horizontal) {
       contents += new BoxPanel(Orientation.Vertical) {
@@ -218,7 +297,13 @@ object SwingUI extends SimpleSwingApplication {
         minimumSize = new Dimension(width/5, height)
         // GridPanel for the color buttons
         contents += new GridPanel(4,3) {
-          contents ++= buttons
+          contents ++= colorButtons
+          maximumSize = new Dimension(colorButtonSize.width * 3, colorButtonSize.height * 5)
+        }          
+        contents += Swing.VStrut(10)
+        // GridPanel for shape buttons 
+        contents += new GridPanel(4,1) {          
+          contents ++= shapeButtons
           maximumSize = new Dimension(colorButtonSize.width * 3, colorButtonSize.height * 5)
         }
         contents += new Separator
@@ -241,54 +326,64 @@ object SwingUI extends SimpleSwingApplication {
   
 
   this.listenTo(drawPanel)
-  for (button <- buttons) {
+  for (button <- colorButtons) {
     this.listenTo(button)
   }
-  this.reactions += {
-  
-    
-    case clickEvent: MouseReleased => {
-      println("o")
-    }
-    
+  for (button <- shapeButtons) {
+    this.listenTo(button)
+  }
+  this.reactions += {      
     case ButtonClicked(`redButton`) => {
-      drawPanel.changeColor(Color.red)
-    }
-    
+      changeColor(Color.red)
+    }    
     case ButtonClicked(`blackButton`) => {
-      drawPanel.changeColor(Color.black)
-    }
-    
+      changeColor(Color.black)
+    }    
     case ButtonClicked(`whiteButton`) => {
-      drawPanel.changeColor(Color.WHITE)
+      changeColor(Color.WHITE)
     }
     case ButtonClicked(`blueButton`) => {
-      drawPanel.changeColor(Color.blue)
+      changeColor(Color.blue)
     }
     case ButtonClicked(`cyanButton`) => {
-      drawPanel.changeColor(Color.CYAN)
+      changeColor(Color.CYAN)
     }
     case ButtonClicked(`orangeButton`) => {
-      drawPanel.changeColor(Color.orange)
+      changeColor(Color.orange)
     }
     case ButtonClicked(`magentaButton`) => {
-      drawPanel.changeColor(Color.magenta)
+      changeColor(Color.magenta)
     }
     case ButtonClicked(`grayButton`) => {
-      drawPanel.changeColor(Color.gray)
+      changeColor(Color.gray)
     }
     case ButtonClicked(`darkGrayButton`) => {
-      drawPanel.changeColor(Color.DARK_GRAY)
+      changeColor(Color.DARK_GRAY)
     }
     case ButtonClicked(`yellowButton`) => {
-      drawPanel.changeColor(Color.yellow)
+      changeColor(Color.yellow)
     }
     case ButtonClicked(`pinkButton`) => {
-      drawPanel.changeColor(Color.PINK)
+      changeColor(Color.PINK)
     }
     case ButtonClicked(`greenButton`) => {
-      drawPanel.changeColor(Color.green)
+      changeColor(Color.green)
+    }
+    case ButtonClicked(`lineButton`) => {
+      currentShape = new geom.Line2D.Double
+    }
+    case ButtonClicked(`rectangleButton`) => {
+      currentShape = new geom.Rectangle2D.Double
+    }
+    case ButtonClicked(`circleButton`) => {
+     isCircle = true
+     currentShape = new geom.Ellipse2D.Double
+    }
+    case ButtonClicked(`ellipseButton`) => {
+      isCircle = false
+      currentShape = new geom.Ellipse2D.Double
     }
       
   }
+  
 }

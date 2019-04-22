@@ -8,18 +8,43 @@ class Drawing {
   
   private var currentColor = Color.BLACK
   
-  private var undos = Stack[Command]() 
-  private var redos = Stack[Command]()
+  val colorUndos = Stack[Color]()
+  val colorRedos = Stack[Color]()
+  val shapeUndos = Stack[java.awt.Shape]() 
+  val shapeRedos = Stack[java.awt.Shape]()
   
-  def addUndo(shape: Command) = undos.push(shape)
+  def addUndo(shape: java.awt.Shape) = shapeUndos.push(shape)
+  
+  def addColor(color: Color) = colorUndos.push(color)
   
   def undo = {
-    val topElement = undos.pop
-    topElement.Undo
-    redos.push(topElement)
+    if (!shapeUndos.isEmpty) {
+      val topShape = shapeUndos.pop
+      val topColor = colorUndos.pop
+      shapeRedos.push(topShape)
+      colorRedos.push(topColor)
+      
+    }
+    
   }
   
-  def deleteAll = undos.clear()
+  def deleteAll() = {
+    shapeRedos.pushAll(shapeUndos)
+    colorRedos.pushAll(colorUndos)
+    shapeUndos.clear()
+    colorUndos.clear()
+  }
+  
+  def redo = {
+    if (!shapeRedos.isEmpty) {
+      val topShape = shapeRedos.pop
+      val topColor = colorRedos.pop
+      shapeUndos.push(topShape)
+      colorUndos.push(topColor)
+    }
+    
+  }
+  
   
   def drawLine(x1: Double, y1: Double, x2: Double, y2: Double) = ???
   
