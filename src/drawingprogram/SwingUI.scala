@@ -2,6 +2,8 @@ package drawingprogram
 import scala.swing._
 import java.awt.{Color, Dimension, Graphics, Graphics2D, Point, geom, BasicStroke}
 import scala.swing.event._
+import scala.collection.mutable.Buffer
+import javax.swing.JFileChooser
 
 
 object SwingUI extends SimpleSwingApplication {
@@ -10,10 +12,11 @@ object SwingUI extends SimpleSwingApplication {
   val width = 1500
   val colorButtonSize = new Dimension(50, 50)
   
-  val picture = new Drawing
+  private var picture = new Drawing
   private var currentStroke = 3
   private var currentColor = Color.black
-  private var colorName = "black"
+  //used when saving and opening files
+  private var colorName = "BLA,"
   private var currentShape: java.awt.Shape = new geom.Line2D.Double
   // differentiate between a circle and an ellipse
   private var isCircle = false
@@ -21,6 +24,7 @@ object SwingUI extends SimpleSwingApplication {
   def changeColor(color: Color) = currentColor = color
   def changeShape(shape: java.awt.Shape) = currentShape = shape   
   def changeStroke(thickness: Int) = currentStroke = thickness
+  def changePicture(drawing: Drawing) = picture = drawing
     
   def buttonAction = ???
  
@@ -140,13 +144,10 @@ object SwingUI extends SimpleSwingApplication {
           max = 10
           value = 3
           majorTickSpacing = 1
-          
+          tooltip = "Line thickness"
+          paintTicks = true
+          paintLabels = true
         }
-  // case class for drawing event 
-  
-  case class DrawingStartEvent(val x: Int, val y: Int) extends Event
-  
-  case class DrawingStopEvent(val x: Int, val y: Int) extends Event
   
    // panel where the drawing happens 
   
@@ -155,38 +156,36 @@ object SwingUI extends SimpleSwingApplication {
     listenTo(mouse.clicks, mouse.moves, keys)
     focusable = true
     background = Color.WHITE
-    
     private var startPoint = (0.0, 0.0)
 
     // What happens when you press and drag your mouse on the canvas
     reactions += {
       case e: MousePressed  => 
         startPoint = (e.point.x, e.point.y) 
-        // Remove the redos if we start drawing a new shape
-        picture.redos.clear()
-        requestFocusInWindow()
+        requestFocusInWindow
       case e: MouseDragged  => lineTo(e.point)
       case e: MouseReleased => {
         lineTo(e.point)
-        picture.undos.push(new Shape(currentColor, currentShape, currentStroke, isCircle, startPoint._1, startPoint._2, e.point.x, e.point.y))
-        println(currentColor)
-        println(currentShape.formatted("asd"))
-        println(currentStroke)
+        // only start drawing if you drag the mouse        
+        if ((startPoint._1 != e.point.x) && (startPoint._2 != e.point.y)) {
+          // Remove the redos if we start drawing a new shape
+          picture.redos.clear()
+          picture.undos.push(new Shape(currentColor, colorName, currentShape, currentStroke, isCircle, 
+            startPoint._1, startPoint._2, e.point.x, e.point.y))
+        }
         initiateShape()
       }          
       case KeyTyped(_,'c',_,_) =>         
         picture.deleteAll
-        initiateShape()
         repaint()
       case KeyTyped(_,'z',_,_) =>       
         picture.undo
-        initiateShape()
         repaint()
       case KeyTyped(_,'r',_,_) =>
         picture.redo
-        initiateShape()
         repaint()
-      case _: FocusLost => repaint()
+      case _: FocusLost => 
+        repaint
     }
     
     // draws the currently selected shape  
@@ -197,7 +196,7 @@ object SwingUI extends SimpleSwingApplication {
         case rectangle: geom.Rectangle2D.Double => {
           if (startPoint._1 < p.x && startPoint._2 < p.y) {
             rectangle.setRect(startPoint._1, startPoint._2, p.x - startPoint._1, p.y - startPoint._2)
-          } else if (startPoint._1 >= p.x && startPoint._2 >= p.y) {
+          } else if (startPoint._1 > p.x && startPoint._2 > p.y) {
             rectangle.setRect(p.x, p.y, startPoint._1 - p.x, startPoint._2 - p.y)
           } else if (startPoint._1 < p.x && startPoint._2 > p.y) {
             rectangle.setRect(startPoint._1 , p.y, p.x - startPoint._1, startPoint._2 - p.y)
@@ -211,7 +210,7 @@ object SwingUI extends SimpleSwingApplication {
           if (!isCircle) {
             if (startPoint._1 < p.x && startPoint._2 < p.y) {
               ellipse.setFrame(startPoint._1, startPoint._2, p.x - startPoint._1, p.y - startPoint._2)
-            } else if (startPoint._1 >= p.x && startPoint._2 >= p.y) {
+            } else if (startPoint._1 > p.x && startPoint._2 > p.y) {
               ellipse.setFrame(p.x, p.y, startPoint._1 - p.x, startPoint._2 - p.y)
             } else if (startPoint._1 < p.x && startPoint._2 > p.y) {
               ellipse.setFrame(startPoint._1 , p.y, p.x - startPoint._1, startPoint._2 - p.y)
@@ -221,7 +220,7 @@ object SwingUI extends SimpleSwingApplication {
           } else {
             if (startPoint._1 < p.x && startPoint._2 < p.y) {
               ellipse.setFrame(startPoint._1, startPoint._2, p.x - startPoint._1, p.x - startPoint._1)
-            } else if (startPoint._1 >= p.x && startPoint._2 >= p.y) {
+            } else if (startPoint._1 > p.x && startPoint._2 > p.y) {
               ellipse.setFrame(p.x, startPoint._2 - (startPoint._1 - p.x), startPoint._1 - p.x, startPoint._1 - p.x)
             } else if (startPoint._1 < p.x && startPoint._2 > p.y) {
               ellipse.setFrame(startPoint._1 ,startPoint._2 - (p.x - startPoint._1), p.x - startPoint._1, p.x - startPoint._1)
@@ -248,11 +247,13 @@ object SwingUI extends SimpleSwingApplication {
  
     override def paintComponent(g: Graphics2D) = {
       super.paintComponent(g)
+      // makes the lines smoother
       g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, 
 		   java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
       g.setColor(new Color(100,100,100))
       g.drawString("Press left mouse button and drag to paint." + 
                    (" Press 'c' to clear, 'z' to undo and 'r' to redo. Adjust the slider to change line thickness. " ), 10, size.height-10)
+      // draws all of the shapes again everytime you draw a new thing, because for some reason the repaint() method deletes all other shapes
       for (shape <- picture.undos.reverse) {
         g.setColor(shape.color)
         g.setStroke(new BasicStroke(shape.stroke))
@@ -267,10 +268,7 @@ object SwingUI extends SimpleSwingApplication {
   }
   val drawPanel = new DrawPanel
   
-//  val drawing = new BufferedImage(drawPanel.maximumSize.width, drawPanel.maximumSize.height, BufferedImage.TYPE_INT_ARGB)
-//  val g = drawing.getGraphics.asInstanceOf[Graphics2D]
-//  
-  
+  //the whole GUI
   def top = new MainFrame {
     title    = "Drawing program"
     resizable = false
@@ -279,12 +277,36 @@ object SwingUI extends SimpleSwingApplication {
         background = Color.white
         contents += new Menu("File") {
           contents += new MenuItem(Action("Open") {
-            buttonAction
+            // opens a filechooser 
+             new JFileChooser {
+                setCurrentDirectory(new java.io.File("SaveFiles"))
+                setDialogTitle("Choose the file you want to open")
+                setAcceptAllFileFilterUsed(false)
+                // creates a picture from the file
+                if (showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+                  Read.readFile(getSelectedFile())
+                }
+             }
           })
           contents += new MenuItem(Action("Save") {
+            // save feature
             val r = Dialog.showInput(new Label("Save"), "Name the file", initial = picture.getName)
             r match {
-              case Some(s) => picture.changeName(s)
+              case Some(s) => {
+                Write.changeName(s)
+                // creates an array for the save file
+                var fileData = Buffer[String]()
+                for (undo <- picture.undos.reverse) {
+                   val geometry = undo.shape match {
+                          case line: geom.Line2D.Double => "L,"
+                          case rectangle: geom.Rectangle2D.Double => "R,"
+                          case ellipse: geom.Ellipse2D.Double => if (undo.isCircle) "C," else "E,"
+                    }        
+                    fileData += (geometry + undo.colorName + undo.stroke + "," + undo.x1 + "," + 
+                        undo.y1 + "," + undo.x2 + "," + undo.y2  + "\n")          
+                }
+                Write.save(fileData.toArray)
+              }
               case None => 
             }
           })
@@ -293,12 +315,10 @@ object SwingUI extends SimpleSwingApplication {
         contents += new Menu("Edit") {
           contents += new MenuItem(Action("Undo") {
             picture.undo
-            drawPanel.initiateShape()
             drawPanel.repaint()
           })
           contents += new MenuItem(Action("Redo") {
             picture.redo
-            drawPanel.initiateShape()
             drawPanel.repaint()
           })
         }
@@ -324,21 +344,12 @@ object SwingUI extends SimpleSwingApplication {
       }
       contents += drawPanel
     }
-      
-     
-     size     = new Dimension(width, height) 
-      
-      
-    
-    
-   
+           
+     size = new Dimension(width, height)    
   }
   
-  
-  
+    
   //EVENTS
-  
-
   this.listenTo(drawPanel)
   this.listenTo(slider)
   for (button <- colorButtons) {
@@ -350,40 +361,51 @@ object SwingUI extends SimpleSwingApplication {
   this.reactions += {      
     case ButtonClicked(`redButton`) => {
       changeColor(Color.red)
+      colorName = "RED,"
     }    
     case ButtonClicked(`blackButton`) => {
       changeColor(Color.black)
+      colorName = "BLA,"
     }    
     case ButtonClicked(`whiteButton`) => {
       changeColor(Color.WHITE)
-      println(currentShape.getBounds)
+      colorName = "WHI,"
     }
     case ButtonClicked(`blueButton`) => {
       changeColor(Color.blue)
+      colorName = "BLU,"
     }
     case ButtonClicked(`cyanButton`) => {
       changeColor(Color.CYAN)
+      colorName = "CYA,"
     }
     case ButtonClicked(`orangeButton`) => {
       changeColor(Color.orange)
+      colorName = "ORA,"
     }
     case ButtonClicked(`magentaButton`) => {
       changeColor(Color.magenta)
+      colorName = "MAG,"
     }
     case ButtonClicked(`grayButton`) => {
       changeColor(Color.gray)
+      colorName = "GRA,"
     }
     case ButtonClicked(`darkGrayButton`) => {
       changeColor(Color.DARK_GRAY)
+      colorName = "DGR,"
     }
     case ButtonClicked(`yellowButton`) => {
       changeColor(Color.yellow)
+      colorName = "YEL,"
     }
     case ButtonClicked(`pinkButton`) => {
       changeColor(Color.PINK)
+      colorName = "PIN,"
     }
     case ButtonClicked(`greenButton`) => {
       changeColor(Color.green)
+      colorName = "GRE,"
     }
     case ButtonClicked(`lineButton`) => {
       currentShape = new geom.Line2D.Double
@@ -407,5 +429,6 @@ object SwingUI extends SimpleSwingApplication {
     }
       
   }
+  
   
 }
