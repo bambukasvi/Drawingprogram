@@ -1,8 +1,8 @@
 package drawingprogram
 import scala.swing._
 import java.awt.{Color, Dimension, Graphics, Graphics2D, Point, geom, BasicStroke}
-import scala.collection.mutable.Stack
 import scala.swing.event._
+
 
 object SwingUI extends SimpleSwingApplication {
   
@@ -11,16 +11,16 @@ object SwingUI extends SimpleSwingApplication {
   val colorButtonSize = new Dimension(50, 50)
   
   val picture = new Drawing
-  
-  private var currentStroke = new BasicStroke(3)
+  private var currentStroke = 3
   private var currentColor = Color.black
-  private var currentShape: java.awt.Shape = new java.awt.geom.Line2D.Double
+  private var colorName = "black"
+  private var currentShape: java.awt.Shape = new geom.Line2D.Double
   // differentiate between a circle and an ellipse
   private var isCircle = false
   
   def changeColor(color: Color) = currentColor = color
   def changeShape(shape: java.awt.Shape) = currentShape = shape   
-  def changeStroke(thickness: Int) = currentStroke = new BasicStroke(thickness)
+  def changeStroke(thickness: Int) = currentStroke = thickness
     
   def buttonAction = ???
  
@@ -104,7 +104,6 @@ object SwingUI extends SimpleSwingApplication {
   val colorButtons = Vector[Button](blackButton, darkGrayButton, grayButton, redButton, orangeButton, yellowButton,  blueButton, magentaButton, cyanButton, greenButton, pinkButton, whiteButton)
   
   //  buttons for different shapes
-  
   val lineButton = new Button("Line") {
     background = Color.WHITE
     preferredSize = colorButtonSize
@@ -134,7 +133,15 @@ object SwingUI extends SimpleSwingApplication {
   }
   
   val shapeButtons = Vector[Button](lineButton, rectangleButton, circleButton, ellipseButton)
-  
+  // slider for shape thickness
+  val slider = new Slider {
+          name = "Thickness"
+          min = 1
+          max = 10
+          value = 3
+          majorTickSpacing = 1
+          
+        }
   // case class for drawing event 
   
   case class DrawingStartEvent(val x: Int, val y: Int) extends Event
@@ -150,20 +157,21 @@ object SwingUI extends SimpleSwingApplication {
     background = Color.WHITE
     
     private var startPoint = (0.0, 0.0)
-    
+
     // What happens when you press and drag your mouse on the canvas
     reactions += {
       case e: MousePressed  => 
-        startPoint = (e.point.getX, e.point.getY) 
+        startPoint = (e.point.x, e.point.y) 
         // Remove the redos if we start drawing a new shape
-        picture.shapeRedos.clear()
-        picture.colorRedos.clear()
+        picture.redos.clear()
         requestFocusInWindow()
       case e: MouseDragged  => lineTo(e.point)
       case e: MouseReleased => {
         lineTo(e.point)
-        picture.addUndo(currentShape)
-        picture.addColor(currentColor)
+        picture.undos.push(new Shape(currentColor, currentShape, currentStroke, isCircle, startPoint._1, startPoint._2, e.point.x, e.point.y))
+        println(currentColor)
+        println(currentShape.formatted("asd"))
+        println(currentStroke)
         initiateShape()
       }          
       case KeyTyped(_,'c',_,_) =>         
@@ -184,7 +192,6 @@ object SwingUI extends SimpleSwingApplication {
     // draws the currently selected shape  
     def lineTo(p: Point) = { 
       currentShape match {
-        
         case line: geom.Line2D.Double => line.setLine(startPoint._1, startPoint._2, p.x, p.y)
         
         case rectangle: geom.Rectangle2D.Double => {
@@ -245,13 +252,15 @@ object SwingUI extends SimpleSwingApplication {
 		   java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
       g.setColor(new Color(100,100,100))
       g.drawString("Press left mouse button and drag to paint." + 
-                   (if(hasFocus) " Press 'c' to clear, 'z' to undo and 'r' to redo. " else ""), 10, size.height-10)
+                   (" Press 'c' to clear, 'z' to undo and 'r' to redo. Adjust the slider to change line thickness. " ), 10, size.height-10)
+      for (shape <- picture.undos.reverse) {
+        g.setColor(shape.color)
+        g.setStroke(new BasicStroke(shape.stroke))
+        g.draw(shape.shape)
+      }
+      g.setStroke(new BasicStroke(currentStroke))
       g.setColor(currentColor)
       g.draw(currentShape)
-      for (i <- 0 until picture.shapeUndos.size) {
-        g.setColor(picture.colorUndos(i))
-        g.draw(picture.shapeUndos(i))
-      }
       
     }
   
@@ -266,7 +275,6 @@ object SwingUI extends SimpleSwingApplication {
     title    = "Drawing program"
     resizable = false
     
-    
       menuBar = new MenuBar {
         background = Color.white
         contents += new Menu("File") {
@@ -274,7 +282,11 @@ object SwingUI extends SimpleSwingApplication {
             buttonAction
           })
           contents += new MenuItem(Action("Save") {
-            buttonAction
+            val r = Dialog.showInput(new Label("Save"), "Name the file", initial = picture.getName)
+            r match {
+              case Some(s) => picture.changeName(s)
+              case None => 
+            }
           })
         }
         
@@ -295,6 +307,7 @@ object SwingUI extends SimpleSwingApplication {
       contents += new BoxPanel(Orientation.Vertical) {
         maximumSize = new Dimension(width/5, height)
         minimumSize = new Dimension(width/5, height)
+        contents += Swing.VStrut(10)
         // GridPanel for the color buttons
         contents += new GridPanel(4,3) {
           contents ++= colorButtons
@@ -302,11 +315,12 @@ object SwingUI extends SimpleSwingApplication {
         }          
         contents += Swing.VStrut(10)
         // GridPanel for shape buttons 
-        contents += new GridPanel(4,1) {          
+        contents += new GridPanel(shapeButtons.length,1) {          
           contents ++= shapeButtons
           maximumSize = new Dimension(colorButtonSize.width * 3, colorButtonSize.height * 5)
         }
-        contents += new Separator
+        contents += Swing.VStrut(30)
+        contents += slider
       }
       contents += drawPanel
     }
@@ -326,6 +340,7 @@ object SwingUI extends SimpleSwingApplication {
   
 
   this.listenTo(drawPanel)
+  this.listenTo(slider)
   for (button <- colorButtons) {
     this.listenTo(button)
   }
@@ -341,6 +356,7 @@ object SwingUI extends SimpleSwingApplication {
     }    
     case ButtonClicked(`whiteButton`) => {
       changeColor(Color.WHITE)
+      println(currentShape.getBounds)
     }
     case ButtonClicked(`blueButton`) => {
       changeColor(Color.blue)
@@ -382,6 +398,12 @@ object SwingUI extends SimpleSwingApplication {
     case ButtonClicked(`ellipseButton`) => {
       isCircle = false
       currentShape = new geom.Ellipse2D.Double
+    }
+    case ValueChanged(`slider`) => {
+      if (!slider.adjusting) {
+        this.changeStroke(slider.value)
+      }
+     
     }
       
   }
