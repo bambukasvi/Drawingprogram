@@ -14,8 +14,8 @@ class SaveHandler {
   /**
    * data is show like this:
    * 
-   * L,BLA,3,352.0389.0565.0225.0
-	 * L,BLA,3,279.0205.0683.0439.0
+   * L,BLA,3,352.0,389.0,565.0,225.0
+	 * L,BLA,3,279.0,205.0,683.0,439.0
 	 * 
 	 * Shape, color, line thickness, coordinates, coordinates(if line) / coordinates, width and height (if something else)
    */
@@ -50,6 +50,7 @@ class SaveHandler {
       for (line <- lines) {
         val values = line.split(',')
         if (values.size != 7) throw new CorruptedFileException("Failed to read data from file, not enough values")
+        if (values(2).toInt > 10 || values(2).toInt < 1) throw new CorruptedFileException("Failed to read data from file, thickness value not supported")
           val color = values(1) match {
             case "BLA" => Color.black
             case "RED" => Color.red
