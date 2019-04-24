@@ -9,7 +9,7 @@ class Drawing {
   
   def getName = name
   def changeName(n: String) = name = n
-  
+
   val undos = Stack[Shape]()
   val redos = Stack[Shape]()
   
@@ -18,8 +18,8 @@ class Drawing {
   def redo = if (!redos.isEmpty) undos.push(redos.pop)
      
   def deleteAll() = {
-    redos.pushAll(undos)
-    undos.clear
+    redos.clear()
+    undos.clear()
   }
     
   

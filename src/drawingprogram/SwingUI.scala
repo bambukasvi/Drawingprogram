@@ -6,13 +6,12 @@ import scala.collection.mutable.Buffer
 import javax.swing.JFileChooser
 
 
-object SwingUI extends SimpleSwingApplication {
+class SwingUI(var picture: Drawing) extends SimpleSwingApplication {
   
   val height = 1000
   val width = 1500
   val colorButtonSize = new Dimension(50, 50)
   
-  private var picture = new Drawing
   private var currentStroke = 3
   private var currentColor = Color.black
   //used when saving and opening files
@@ -297,7 +296,7 @@ object SwingUI extends SimpleSwingApplication {
                 // creates an array for the save file
                 var fileData = Buffer[String]()
                 for (undo <- picture.undos.reverse) {
-                   val geometry = undo.shape match {
+                   val geometry = undo.shape match { 
                           case line: geom.Line2D.Double => "L,"
                           case rectangle: geom.Rectangle2D.Double => "R,"
                           case ellipse: geom.Ellipse2D.Double => if (undo.isCircle) "C," else "E,"
