@@ -4,9 +4,12 @@ import java.awt.{Color, Dimension, Graphics, Graphics2D, Point, geom, BasicStrok
 import scala.swing.event._
 import scala.collection.mutable.Buffer
 import javax.swing.JFileChooser
+import javax.swing.filechooser.FileNameExtensionFilter
+import java.io.FileFilter
+import java.io.FilenameFilter
 
 
-class SwingUI(var picture: Drawing) extends SimpleSwingApplication {
+class SwingUI(val picture: Drawing) extends SimpleSwingApplication {
   
   val height = 1000
   val width = 1500
@@ -23,9 +26,6 @@ class SwingUI(var picture: Drawing) extends SimpleSwingApplication {
   def changeColor(color: Color) = currentColor = color
   def changeShape(shape: java.awt.Shape) = currentShape = shape   
   def changeStroke(thickness: Int) = currentStroke = thickness
-  def changePicture(drawing: Drawing) = picture = drawing
-    
-  def buttonAction = ???
  
   //Buttons for different colors
   
@@ -104,7 +104,8 @@ class SwingUI(var picture: Drawing) extends SimpleSwingApplication {
     tooltip = "Dark gray"
   }
   
-  val colorButtons = Vector[Button](blackButton, darkGrayButton, grayButton, redButton, orangeButton, yellowButton,  blueButton, magentaButton, cyanButton, greenButton, pinkButton, whiteButton)
+  val colorButtons = Vector[Button](blackButton, darkGrayButton, grayButton, redButton, orangeButton, yellowButton,  
+      blueButton, magentaButton, cyanButton, greenButton, pinkButton, whiteButton)
   
   //  buttons for different shapes
   val lineButton = new Button("Line") {
@@ -136,6 +137,7 @@ class SwingUI(var picture: Drawing) extends SimpleSwingApplication {
   }
   
   val shapeButtons = Vector[Button](lineButton, rectangleButton, circleButton, ellipseButton)
+  
   // slider for shape thickness
   val slider = new Slider {
           name = "Thickness"
@@ -147,6 +149,39 @@ class SwingUI(var picture: Drawing) extends SimpleSwingApplication {
           paintTicks = true
           paintLabels = true
         }
+  // does this when pressing open from menubar, tries to open a new drawing from a file, but does not work correctly
+  def openAction() = {
+    // opens a filechooser 
+    new JFileChooser {
+       setCurrentDirectory(new java.io.File("SaveFiles"))
+       setDialogTitle("Choose the file you want to open")
+       setAcceptAllFileFilterUsed(false)
+       val filter = new FileNameExtensionFilter("txt", "txt")
+       setFileFilter(filter)
+       // creates a picture from the file
+       if (showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+         Read.readFile(getSelectedFile()) match {
+         case Some(openedPicture) => {
+           ProgramRunner.makeNewUI(openedPicture)
+           ProgramRunner.top
+         }
+         case None => 
+         } 
+                  
+       }
+    }
+  }
+  // save feature, executes this when pressing the save option from menubar
+  def saveAction = {
+            val r = Dialog.showInput(new Label("Save"), "Name the file", initial = picture.getName)
+            r match {
+              case Some(s) => {
+                Write.changeName(s)
+                Write.save(picture.undos)
+              }
+              case None => 
+            }
+  }
   
    // panel where the drawing happens 
   
@@ -232,7 +267,7 @@ class SwingUI(var picture: Drawing) extends SimpleSwingApplication {
       
       repaint() 
     }
-
+    // without this the old shapes disappear for some reason when you start drawing a new one
     def initiateShape() = {
       if (currentShape.isInstanceOf[geom.Line2D.Double]) {
           currentShape = new geom.Line2D.Double 
@@ -252,7 +287,7 @@ class SwingUI(var picture: Drawing) extends SimpleSwingApplication {
       g.setColor(new Color(100,100,100))
       g.drawString("Press left mouse button and drag to paint." + 
                    (" Press 'c' to clear, 'z' to undo and 'r' to redo. Adjust the slider to change line thickness. " ), 10, size.height-10)
-      // draws all of the shapes again everytime you draw a new thing, because for some reason the repaint() method deletes all other shapes
+      // draws all of the shapes again everytime you draw a new thing, because the repaint() method deletes all other shapes
       for (shape <- picture.undos.reverse) {
         g.setColor(shape.color)
         g.setStroke(new BasicStroke(shape.stroke))
@@ -266,6 +301,8 @@ class SwingUI(var picture: Drawing) extends SimpleSwingApplication {
   
   }
   val drawPanel = new DrawPanel
+  val openMenu = new MenuItem("Open")
+  val saveMenu = new MenuItem("Save")
   
   //the whole GUI
   def top = new MainFrame {
@@ -275,40 +312,8 @@ class SwingUI(var picture: Drawing) extends SimpleSwingApplication {
       menuBar = new MenuBar {
         background = Color.white
         contents += new Menu("File") {
-          contents += new MenuItem(Action("Open") {
-            // opens a filechooser 
-             new JFileChooser {
-                setCurrentDirectory(new java.io.File("SaveFiles"))
-                setDialogTitle("Choose the file you want to open")
-                setAcceptAllFileFilterUsed(false)
-                // creates a picture from the file
-                if (showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-                  Read.readFile(getSelectedFile())
-                }
-             }
-          })
-          contents += new MenuItem(Action("Save") {
-            // save feature
-            val r = Dialog.showInput(new Label("Save"), "Name the file", initial = picture.getName)
-            r match {
-              case Some(s) => {
-                Write.changeName(s)
-                // creates an array for the save file
-                var fileData = Buffer[String]()
-                for (undo <- picture.undos.reverse) {
-                   val geometry = undo.shape match { 
-                          case line: geom.Line2D.Double => "L,"
-                          case rectangle: geom.Rectangle2D.Double => "R,"
-                          case ellipse: geom.Ellipse2D.Double => if (undo.isCircle) "C," else "E,"
-                    }        
-                    fileData += (geometry + undo.colorName + undo.stroke + "," + undo.x1 + "," + 
-                        undo.y1 + "," + undo.x2 + "," + undo.y2  + "\n")          
-                }
-                Write.save(fileData.toArray)
-              }
-              case None => 
-            }
-          })
+          contents += openMenu
+          contents += saveMenu
         }
         
         contents += new Menu("Edit") {
@@ -350,6 +355,8 @@ class SwingUI(var picture: Drawing) extends SimpleSwingApplication {
     
   //EVENTS
   this.listenTo(drawPanel)
+  this.listenTo(openMenu)
+  this.listenTo(saveMenu)
   this.listenTo(slider)
   for (button <- colorButtons) {
     this.listenTo(button)
@@ -426,8 +433,14 @@ class SwingUI(var picture: Drawing) extends SimpleSwingApplication {
       }
      
     }
+    case ButtonClicked(`openMenu`) => openAction
+    case ButtonClicked(`saveMenu`) => saveAction
       
   }
   
   
+  
 }
+
+  
+  

@@ -3,6 +3,7 @@ import java.io._
 import scala.io.Source
 import java.awt.{Color, Dimension, Graphics, Graphics2D, Point, geom, BasicStroke}
 import scala.collection.mutable.Buffer
+import scala.collection.mutable.Stack
 
 object Write {
   
@@ -15,11 +16,21 @@ object Write {
    * L,BLA,3,352.0389.0565.0225.0
 	 * L,BLA,3,279.0205.0683.0439.0
 	 * 
-	 * Shape, color, line thickness, coordinates/width and height
+	 * Shape, color, line thickness, coordinates, coordinates(if line) / coordinates, width and height (if something else)
    */
 
-  def save(fileData: Array[String]) {
-    val file = new File("SaveFiles/" + fileName)
+  def save(undos: Stack[Shape]) {
+    var fileData = Buffer[String]()
+    for (undo <- undos.reverse) {
+      val geometry = undo.shape match { 
+        case line: geom.Line2D.Double => "L,"
+        case rectangle: geom.Rectangle2D.Double => "R,"
+        case ellipse: geom.Ellipse2D.Double => if (undo.isCircle) "C," else "E,"
+      }        
+      fileData += (geometry + undo.colorName + undo.stroke + "," + undo.x1 + "," + 
+            undo.y1 + "," + undo.x2 + "," + undo.y2  + "\n")          
+    }
+    val file = new File("SaveFiles/" + fileName + ".txt")
     val writer = new PrintWriter(file)
     fileData.foreach(string => writer.write(string))
     writer.close()
@@ -31,7 +42,7 @@ object Write {
 
 object Read {
 
-  def readFile(f: File) = {
+  def readFile(f: File): Option[Drawing] = {
     val picture = new Drawing
     try {
       val lines = Source.fromFile(f).getLines.toArray
@@ -73,14 +84,22 @@ object Read {
           case _ => throw new CorruptedFileException("Failed to read data from file")
         }
       }
+      Some(picture)
      
     } catch {
       case v: FileNotFoundException =>
       println("File not found")
+      None
       case e: IOException =>
       println("Reading finished with an error")
+      None
+      case c: CorruptedFileException => 
+      println(c.message)
+      None
     }
   }
+  
+  
   
 }
 // exception for failed file reading
