@@ -66,19 +66,27 @@ object Read {
         }
         values(0) match {
           case "L" => {
-            picture.undos.push(new Shape(color, values(1), new geom.Line2D.Double, values(2).toInt, false, 
+            val line = new geom.Line2D.Double
+            line.setLine(values(3).toDouble, values(4).toDouble, values(5).toDouble, values(6).toDouble)
+            picture.undos.push(new Shape(color, values(1), line, values(2).toInt, false, 
                 values(3).toDouble, values(4).toDouble, values(5).toDouble, values(6).toDouble))
           } 
           case "R" => {
-            picture.undos.push(new Shape(color, values(1), new geom.Rectangle2D.Double, values(2).toInt, false, 
+            val rectangle = new geom.Rectangle2D.Double
+            rectangle.setRect(values(3).toDouble, values(4).toDouble, values(5).toDouble, values(6).toDouble)
+            picture.undos.push(new Shape(color, values(1), rectangle, values(2).toInt, false, 
                 values(3).toDouble, values(4).toDouble, values(5).toDouble, values(6).toDouble))
           }
           case "C" => {
-            picture.undos.push(new Shape(color, values(1), new geom.Ellipse2D.Double, values(2).toInt, true, 
+            val circle = new geom.Ellipse2D.Double
+            circle.setFrame(values(3).toDouble, values(4).toDouble, values(5).toDouble, values(6).toDouble)
+            picture.undos.push(new Shape(color, values(1), circle, values(2).toInt, true, 
                 values(3).toDouble, values(4).toDouble, values(5).toDouble, values(6).toDouble))
           }
           case "E" => {
-            picture.undos.push(new Shape(color, values(1), new geom.Ellipse2D.Double, values(2).toInt, false, 
+            val ellipse = new geom.Ellipse2D.Double
+            ellipse.setFrame(values(3).toDouble, values(4).toDouble, values(5).toDouble, values(6).toDouble)
+            picture.undos.push(new Shape(color, values(1), ellipse, values(2).toInt, false, 
                 values(3).toDouble, values(4).toDouble, values(5).toDouble, values(6).toDouble))
           }
           case _ => throw new CorruptedFileException("Failed to read data from file")

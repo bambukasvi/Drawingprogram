@@ -9,7 +9,7 @@ import java.io.FileFilter
 import java.io.FilenameFilter
 
 
-class SwingUI(val picture: Drawing) extends SimpleSwingApplication {
+class SwingUI(private var picture: Drawing) extends SimpleSwingApplication {
   
   val height = 1000
   val width = 1500
@@ -26,7 +26,11 @@ class SwingUI(val picture: Drawing) extends SimpleSwingApplication {
   def changeColor(color: Color) = currentColor = color
   def changeShape(shape: java.awt.Shape) = currentShape = shape   
   def changeStroke(thickness: Int) = currentStroke = thickness
- 
+  
+  
+  val drawPanel = new DrawPanel
+  val openMenu = new MenuItem("Open")
+  val saveMenu = new MenuItem("Save")
   //Buttons for different colors
   
   val redButton = new Button("") {
@@ -149,7 +153,7 @@ class SwingUI(val picture: Drawing) extends SimpleSwingApplication {
           paintTicks = true
           paintLabels = true
         }
-  // does this when pressing open from menubar, tries to open a new drawing from a file, but does not work correctly
+  // does this when pressing open from menubar, tries to open a new drawing from a file, but does not work correctly at the moment
   def openAction() = {
     // opens a filechooser 
     new JFileChooser {
@@ -162,8 +166,8 @@ class SwingUI(val picture: Drawing) extends SimpleSwingApplication {
        if (showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
          Read.readFile(getSelectedFile()) match {
          case Some(openedPicture) => {
-           ProgramRunner.makeNewUI(openedPicture)
-           ProgramRunner.top
+           picture = openedPicture           
+           drawPanel.repaint()
          }
          case None => 
          } 
@@ -197,15 +201,22 @@ class SwingUI(val picture: Drawing) extends SimpleSwingApplication {
       case e: MousePressed  => 
         startPoint = (e.point.x, e.point.y) 
         requestFocusInWindow
-      case e: MouseDragged  => lineTo(e.point)
-      case e: MouseReleased => {
-        lineTo(e.point)
+      case e: MouseDragged  => shapeTo(e.point, startPoint)
+      case e: MouseReleased => {        
         // only start drawing if you drag the mouse        
         if ((startPoint._1 != e.point.x) && (startPoint._2 != e.point.y)) {
+          shapeTo(e.point, startPoint)
           // Remove the redos if we start drawing a new shape
           picture.redos.clear()
-          picture.undos.push(new Shape(currentColor, colorName, currentShape, currentStroke, isCircle, 
-            startPoint._1, startPoint._2, e.point.x, e.point.y))
+          val newShape = currentShape match {
+            case line: geom.Line2D.Double => new Shape(currentColor, colorName, currentShape, currentStroke, isCircle, 
+              startPoint._1, startPoint._2, e.point.x, e.point.y)
+            case rectangle: geom.Rectangle2D.Double => new Shape(currentColor, colorName, currentShape, currentStroke, isCircle, 
+              startPoint._1, startPoint._2, rectangle.width, rectangle.height)
+            case ellipse: geom.Ellipse2D.Double => new Shape(currentColor, colorName, currentShape, currentStroke, isCircle, 
+              startPoint._1, startPoint._2, ellipse.width, ellipse.height)
+          }
+          picture.undos.push(newShape)
         }
         initiateShape()
       }          
@@ -221,11 +232,12 @@ class SwingUI(val picture: Drawing) extends SimpleSwingApplication {
       case _: FocusLost => 
         repaint
     }
+
     
     // draws the currently selected shape  
-    def lineTo(p: Point) = { 
+    def shapeTo(p: Point, start: (Double, Double)) = { 
       currentShape match {
-        case line: geom.Line2D.Double => line.setLine(startPoint._1, startPoint._2, p.x, p.y)
+        case line: geom.Line2D.Double => line.setLine(start._1, start._2, p.x, p.y)
         
         case rectangle: geom.Rectangle2D.Double => {
           if (startPoint._1 < p.x && startPoint._2 < p.y) {
@@ -300,9 +312,6 @@ class SwingUI(val picture: Drawing) extends SimpleSwingApplication {
     }
   
   }
-  val drawPanel = new DrawPanel
-  val openMenu = new MenuItem("Open")
-  val saveMenu = new MenuItem("Save")
   
   //the whole GUI
   def top = new MainFrame {
