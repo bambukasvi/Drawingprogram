@@ -1,5 +1,6 @@
 package drawingprogram
 import scala.swing._ 
+import scala.collection.mutable.Buffer
 
 object ProgramRunner extends SimpleSwingApplication  {
   
@@ -9,9 +10,13 @@ object ProgramRunner extends SimpleSwingApplication  {
     currentUI = new SwingUI(picture)
   }
   
-  def top = {
-    currentUI.top
-  }
+ 
+    def top = {
+      currentUI.makeUI
+    }
+    
+
+  
  
     
 }

@@ -12,6 +12,7 @@ class UnitTest {
   // test saving and file reading features, creates a new drawing as a file and forms a new picture from the file
   
   //create a few shapes to be saved and opened later
+  val saveHandler = new SaveHandler
   val line = new Shape(Color.BLACK, "BLA,", new geom.Line2D.Double, 2, false, 12.0, 10.0, 50.0, 100.0)
   val rectangle = new Shape(Color.ORANGE, "ORA,", new geom.Rectangle2D.Double, 2, false, 100.0, 300.0, 100.0, 500.0)
   val ellipse = new Shape(Color.WHITE, "WHI,", new geom.Ellipse2D.Double, 5, false, 42.0, 59.0, 250.0, 400.0)
@@ -37,7 +38,7 @@ class UnitTest {
   
     // test wether the result from readFile equals some of the properties in the shapes created earlier
     @Test def testRead {
-      Read.readFile(file) match {
+      saveHandler.readFile(file) match {
         case Some(picture) => {
           assert(picture.undos.map(_.x1) == undoStack.map(_.x1))
           assert(picture.undos.map(_.color) == undoStack.map(_.color))

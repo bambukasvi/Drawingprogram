@@ -5,7 +5,8 @@ import java.awt.{Color, Dimension, Graphics, Graphics2D, Point, geom, BasicStrok
 import scala.collection.mutable.Buffer
 import scala.collection.mutable.Stack
 
-object Write {
+class SaveHandler {
+
   
   private var fileName = "drawing" 
   def changeName(s: String) = fileName = s 
@@ -23,11 +24,11 @@ object Write {
     var fileData = Buffer[String]()
     for (undo <- undos.reverse) {
       val geometry = undo.shape match { 
-        case line: geom.Line2D.Double => "L,"
-        case rectangle: geom.Rectangle2D.Double => "R,"
-        case ellipse: geom.Ellipse2D.Double => if (undo.isCircle) "C," else "E,"
+        case line: geom.Line2D.Double => "L"
+        case rectangle: geom.Rectangle2D.Double => "R"
+        case ellipse: geom.Ellipse2D.Double => if (undo.isCircle) "C" else "E"
       }        
-      fileData += (geometry + undo.colorName + undo.stroke + "," + undo.x1 + "," + 
+      fileData += (geometry + "," + undo.colorName + "," + undo.stroke + "," + undo.x1 + "," + 
             undo.y1 + "," + undo.x2 + "," + undo.y2  + "\n")          
     }
     val file = new File("SaveFiles/" + fileName + ".txt")
@@ -38,9 +39,9 @@ object Write {
   }
   
 
-}
 
-object Read {
+
+
 
   def readFile(f: File): Option[Drawing] = {
     val picture = new Drawing
@@ -48,7 +49,7 @@ object Read {
       val lines = Source.fromFile(f).getLines.toArray
       for (line <- lines) {
         val values = line.split(',')
-        if (values.size != 7) throw new CorruptedFileException("Failed to read data from file")
+        if (values.size != 7) throw new CorruptedFileException("Failed to read data from file, not enough values")
           val color = values(1) match {
             case "BLA" => Color.black
             case "RED" => Color.red
@@ -62,7 +63,7 @@ object Read {
             case "YEL" => Color.yellow
             case "CYA" => Color.CYAN
             case "ORA" => Color.orange
-            case _ => throw new CorruptedFileException("Failed to read data from file")
+            case _ => throw new CorruptedFileException("Failed to read data from file, no such color")
         }
         values(0) match {
           case "L" => {
@@ -89,7 +90,7 @@ object Read {
             picture.undos.push(new Shape(color, values(1), ellipse, values(2).toInt, false, 
                 values(3).toDouble, values(4).toDouble, values(5).toDouble, values(6).toDouble))
           }
-          case _ => throw new CorruptedFileException("Failed to read data from file")
+          case _ => throw new CorruptedFileException("Failed to read data from file, no such shape")
         }
       }
       Some(picture)
@@ -112,3 +113,4 @@ object Read {
 }
 // exception for failed file reading
 case class CorruptedFileException(message: String) extends java.lang.Exception(message) 
+

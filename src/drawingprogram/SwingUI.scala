@@ -9,16 +9,16 @@ import java.io.FileFilter
 import java.io.FilenameFilter
 
 
-class SwingUI(private var picture: Drawing) extends SimpleSwingApplication {
+class SwingUI(private var picture: Drawing) extends Frame {
   
   val height = 1000
   val width = 1500
   val colorButtonSize = new Dimension(50, 50)
-  
+  val saveHandler = new SaveHandler
   private var currentStroke = 3
   private var currentColor = Color.black
   //used when saving and opening files
-  private var colorName = "BLA,"
+  private var colorName = "BLA"
   private var currentShape: java.awt.Shape = new geom.Line2D.Double
   // differentiate between a circle and an ellipse
   private var isCircle = false
@@ -164,9 +164,9 @@ class SwingUI(private var picture: Drawing) extends SimpleSwingApplication {
        setFileFilter(filter)
        // creates a picture from the file
        if (showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-         Read.readFile(getSelectedFile()) match {
+         saveHandler.readFile(getSelectedFile()) match {
          case Some(openedPicture) => {
-           picture = openedPicture           
+           picture = openedPicture
            drawPanel.repaint()
          }
          case None => 
@@ -180,8 +180,8 @@ class SwingUI(private var picture: Drawing) extends SimpleSwingApplication {
             val r = Dialog.showInput(new Label("Save"), "Name the file", initial = picture.getName)
             r match {
               case Some(s) => {
-                Write.changeName(s)
-                Write.save(picture.undos)
+                saveHandler.changeName(s)
+                saveHandler.save(picture.undos)
               }
               case None => 
             }
@@ -240,38 +240,38 @@ class SwingUI(private var picture: Drawing) extends SimpleSwingApplication {
         case line: geom.Line2D.Double => line.setLine(start._1, start._2, p.x, p.y)
         
         case rectangle: geom.Rectangle2D.Double => {
-          if (startPoint._1 < p.x && startPoint._2 < p.y) {
-            rectangle.setRect(startPoint._1, startPoint._2, p.x - startPoint._1, p.y - startPoint._2)
-          } else if (startPoint._1 > p.x && startPoint._2 > p.y) {
-            rectangle.setRect(p.x, p.y, startPoint._1 - p.x, startPoint._2 - p.y)
-          } else if (startPoint._1 < p.x && startPoint._2 > p.y) {
-            rectangle.setRect(startPoint._1 , p.y, p.x - startPoint._1, startPoint._2 - p.y)
-          } else if (startPoint._1 > p.x && startPoint._2 < p.y) {
-            rectangle.setRect(p.x, startPoint._2, startPoint._1 - p.x, p.y - startPoint._2)
+          if (start._1 < p.x && start._2 < p.y) {
+            rectangle.setRect(start._1, start._2, p.x - start._1, p.y - start._2)
+          } else if (start._1 > p.x && start._2 > p.y) {
+            rectangle.setRect(p.x, p.y, start._1 - p.x, start._2 - p.y)
+          } else if (start._1 < p.x && start._2 > p.y) {
+            rectangle.setRect(start._1 , p.y, p.x - start._1, start._2 - p.y)
+          } else if (start._1 > p.x && start._2 < p.y) {
+            rectangle.setRect(p.x, start._2, start._1 - p.x, p.y - start._2)
           }          
         }
         
         // ellipse case handels both circle shape and ellipse shape        
         case ellipse: geom.Ellipse2D.Double => {
           if (!isCircle) {
-            if (startPoint._1 < p.x && startPoint._2 < p.y) {
-              ellipse.setFrame(startPoint._1, startPoint._2, p.x - startPoint._1, p.y - startPoint._2)
-            } else if (startPoint._1 > p.x && startPoint._2 > p.y) {
-              ellipse.setFrame(p.x, p.y, startPoint._1 - p.x, startPoint._2 - p.y)
-            } else if (startPoint._1 < p.x && startPoint._2 > p.y) {
-              ellipse.setFrame(startPoint._1 , p.y, p.x - startPoint._1, startPoint._2 - p.y)
-            } else if (startPoint._1 > p.x && startPoint._2 < p.y) {
-              ellipse.setFrame(p.x, startPoint._2, startPoint._1 - p.x, p.y - startPoint._2)
+            if (start._1 < p.x && start._2 < p.y) {
+              ellipse.setFrame(start._1, start._2, p.x - start._1, p.y - start._2)
+            } else if (start._1 > p.x && start._2 > p.y) {
+              ellipse.setFrame(p.x, p.y, start._1 - p.x, start._2 - p.y)
+            } else if (start._1 < p.x && start._2 > p.y) {
+              ellipse.setFrame(start._1 , p.y, p.x - start._1, start._2 - p.y)
+            } else if (start._1 > p.x && start._2 < p.y) {
+              ellipse.setFrame(p.x, start._2, start._1 - p.x, p.y - start._2)
             } 
           } else {
-            if (startPoint._1 < p.x && startPoint._2 < p.y) {
-              ellipse.setFrame(startPoint._1, startPoint._2, p.x - startPoint._1, p.x - startPoint._1)
-            } else if (startPoint._1 > p.x && startPoint._2 > p.y) {
-              ellipse.setFrame(p.x, startPoint._2 - (startPoint._1 - p.x), startPoint._1 - p.x, startPoint._1 - p.x)
-            } else if (startPoint._1 < p.x && startPoint._2 > p.y) {
-              ellipse.setFrame(startPoint._1 ,startPoint._2 - (p.x - startPoint._1), p.x - startPoint._1, p.x - startPoint._1)
-            } else if (startPoint._1 > p.x && startPoint._2 < p.y) {
-              ellipse.setFrame(p.x, startPoint._2, startPoint._1 - p.x, startPoint._1 - p.x)
+            if (start._1 < p.x && start._2 < p.y) {
+              ellipse.setFrame(start._1, start._2, p.x - start._1, p.x - start._1)
+            } else if (start._1 > p.x && start._2 > p.y) {
+              ellipse.setFrame(p.x, start._2 - (start._1 - p.x), start._1 - p.x, start._1 - p.x)
+            } else if (start._1 < p.x && start._2 > p.y) {
+              ellipse.setFrame(start._1 ,start._2 - (p.x - start._1), p.x - start._1, p.x - start._1)
+            } else if (start._1 > p.x && start._2 < p.y) {
+              ellipse.setFrame(p.x, start._2, start._1 - p.x, start._1 - p.x)
             }
           }
         }
@@ -314,7 +314,7 @@ class SwingUI(private var picture: Drawing) extends SimpleSwingApplication {
   }
   
   //the whole GUI
-  def top = new MainFrame {
+  def makeUI = new Frame {
     title    = "Drawing program"
     resizable = false
     
@@ -376,51 +376,51 @@ class SwingUI(private var picture: Drawing) extends SimpleSwingApplication {
   this.reactions += {      
     case ButtonClicked(`redButton`) => {
       changeColor(Color.red)
-      colorName = "RED,"
+      colorName = "RED"
     }    
     case ButtonClicked(`blackButton`) => {
       changeColor(Color.black)
-      colorName = "BLA,"
+      colorName = "BLA"
     }    
     case ButtonClicked(`whiteButton`) => {
       changeColor(Color.WHITE)
-      colorName = "WHI,"
+      colorName = "WHI"
     }
     case ButtonClicked(`blueButton`) => {
       changeColor(Color.blue)
-      colorName = "BLU,"
+      colorName = "BLU"
     }
     case ButtonClicked(`cyanButton`) => {
       changeColor(Color.CYAN)
-      colorName = "CYA,"
+      colorName = "CYA"
     }
     case ButtonClicked(`orangeButton`) => {
       changeColor(Color.orange)
-      colorName = "ORA,"
+      colorName = "ORA"
     }
     case ButtonClicked(`magentaButton`) => {
       changeColor(Color.magenta)
-      colorName = "MAG,"
+      colorName = "MAG"
     }
     case ButtonClicked(`grayButton`) => {
       changeColor(Color.gray)
-      colorName = "GRA,"
+      colorName = "GRA"
     }
     case ButtonClicked(`darkGrayButton`) => {
       changeColor(Color.DARK_GRAY)
-      colorName = "DGR,"
+      colorName = "DGR"
     }
     case ButtonClicked(`yellowButton`) => {
       changeColor(Color.yellow)
-      colorName = "YEL,"
+      colorName = "YEL"
     }
     case ButtonClicked(`pinkButton`) => {
       changeColor(Color.PINK)
-      colorName = "PIN,"
+      colorName = "PIN"
     }
     case ButtonClicked(`greenButton`) => {
       changeColor(Color.green)
-      colorName = "GRE,"
+      colorName = "GRE"
     }
     case ButtonClicked(`lineButton`) => {
       currentShape = new geom.Line2D.Double
